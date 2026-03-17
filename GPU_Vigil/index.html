@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SysMonitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg0: #0a0c0f;
+  --bg1: #0f1217;
+  --bg2: #151a22;
+  --bg3: #1c2430;
+  --border: #1e2d3d;
+  --border-bright: #2a3f55;
+  --text-primary: #e0eaf5;
+  --text-secondary: #7a9abf;
+  --text-muted: #3d5470;
+  --accent: #00d4ff;
+  --accent2: #0088cc;
+  --accent-dim: rgba(0,212,255,0.08);
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.1);
+  --yellow: #ffc107;
+  --yellow-dim: rgba(255,193,7,0.1);
+  --red: #ff3d57;
+  --red-dim: rgba(255,61,87,0.1);
+  --orange: #ff6d00;
+  --purple: #b388ff;
+  --cpu-color: #00d4ff;
+  --gpu-color: #00e676;
+  --mem-color: #ffc107;
+  --disk-color: #b388ff;
+  --net-color: #ff9a3c;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  --font-sans: 'IBM Plex Sans', 'Noto Sans SC', sans-serif;
+  --radius: 6px;
+  --gap: 12px;
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg0);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+
+/* ── Layout ── */
+#app {
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.logo-icon {
+  width: 22px;
+  height: 22px;
+  position: relative;
+}
+
+.logo-icon svg { width: 100%; height: 100%; }
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.header-spacer { flex: 1; }
+
+.header-uptime {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.header-uptime span { color: var(--text-secondary); }
+
+.lang-toggle {
+  display: flex;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.lang-btn {
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: var(--transition);
+}
+
+.lang-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.refresh-rate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.refresh-rate select {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+/* ── Main Content ── */
+.main {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.nav-section {
+  padding: 4px 12px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  border-left: 2px solid transparent;
+  position: relative;
+}
+
+.nav-item:hover { background: var(--bg2); color: var(--text-primary); }
+.nav-item.active {
+  background: var(--accent-dim);
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+
+.nav-item-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.nav-item.active .nav-item-icon { opacity: 1; }
+
+.nav-label {
+  font-size: 12.5px;
+  font-weight: 400;
+  flex: 1;
+}
+
+.nav-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.nav-badge.ok { background: var(--green-dim); color: var(--green); }
+.nav-badge.warn { background: var(--yellow-dim); color: var(--yellow); }
+.nav-badge.crit { background: var(--red-dim); color: var(--red); }
+
+/* Mini spark in sidebar */
+.mini-bar-row {
+  padding: 0 16px 12px;
+}
+
+.mini-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.mini-bar-track {
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── Content ── */
+.content {
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ── Section Headers ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+
+.section-accent { color: var(--accent); margin-right: 2px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  transition: border-color var(--transition);
+}
+
+.card:hover { border-color: var(--border-bright); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.card-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.card-value {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.card-value sup {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+/* ── Gauge Ring ── */
+.gauge-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gauge-ring {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.gauge-ring svg {
+  transform: rotate(-90deg);
+}
+
+.gauge-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+}
+
+.gauge-ring-pct {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.gauge-ring-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+}
+
+/* ── Progress Bar ── */
+.pbar {
+  height: 4px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.pbar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.pbar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Pbar colors */
+.pbar-cpu .pbar-fill { background: var(--cpu-color); }
+.pbar-gpu .pbar-fill { background: var(--gpu-color); }
+.pbar-mem .pbar-fill { background: var(--mem-color); }
+.pbar-disk .pbar-fill { background: var(--disk-color); }
+
+.pbar-fill.warn { background: var(--yellow) !important; }
+.pbar-fill.crit { background: var(--red) !important; }
+
+/* ── Grid layouts ── */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap); }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--gap); }
+
+/* ── Core Grid ── */
+.cores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 6px;
+}
+
+.core-cell {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.core-cell-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.core-cell-val {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.core-cell-freq {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.core-mini-bar {
+  height: 2px;
+  background: var(--bg3);
+  border-radius: 1px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.core-mini-bar-fill {
+  height: 100%;
+  background: var(--cpu-color);
+  border-radius: 1px;
+  transition: width 0.4s ease;
+}
+
+/* ── Chart Canvas ── */
+.chart-wrap {
+  position: relative;
+  height: 80px;
+}
+
+.chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ── Stats Row ── */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ── Temperature ── */
+.temp-display {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.temp-ok { color: var(--green); }
+.temp-warn { color: var(--yellow); }
+.temp-crit { color: var(--red); }
+
+/* ── Process Table ── */
+.process-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  width: 200px;
+  transition: var(--transition);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sort-select {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.btn {
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+.btn:hover { border-color: var(--border-bright); color: var(--text-primary); }
+.btn-danger { border-color: #4a1520; background: rgba(255,61,87,0.08); color: var(--red); }
+.btn-danger:hover { background: rgba(255,61,87,0.18); border-color: var(--red); }
+.btn-warn { border-color: #4a3800; background: rgba(255,193,7,0.08); color: var(--yellow); }
+.btn-warn:hover { background: rgba(255,193,7,0.18); border-color: var(--yellow); }
+.btn-ok { border-color: #004a20; background: rgba(0,230,118,0.08); color: var(--green); }
+.btn-ok:hover { background: rgba(0,230,118,0.18); border-color: var(--green); }
+.btn-accent { border-color: var(--accent2); background: var(--accent-dim); color: var(--accent); }
+.btn-accent:hover { background: rgba(0,212,255,0.15); }
+
+.proc-table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  background: var(--bg2);
+  padding: 8px 10px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: var(--transition);
+}
+
+thead th:hover { color: var(--text-secondary); }
+thead th.sorted { color: var(--accent); }
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+tbody tr:hover { background: var(--bg2); }
+tbody tr.selected { background: var(--accent-dim); }
+tbody tr.suspended { opacity: 0.6; }
+
+tbody td {
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.td-pid { color: var(--text-muted); font-size: 10.5px; }
+.td-name { color: var(--text-primary); font-weight: 500; max-width: 160px; }
+.td-user { color: var(--text-secondary); font-size: 10.5px; }
+.td-cpu { color: var(--cpu-color); text-align: right; }
+.td-mem { color: var(--mem-color); text-align: right; }
+.td-threads { color: var(--text-secondary); text-align: right; }
+
+.status-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-running { background: var(--green-dim); color: var(--green); }
+.status-sleeping { background: rgba(120,160,200,0.1); color: var(--text-secondary); }
+.status-stopped { background: var(--yellow-dim); color: var(--yellow); }
+.status-zombie { background: var(--red-dim); color: var(--red); }
+
+/* ── Toast ── */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  max-width: 320px;
+  animation: toastIn 0.2s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.toast-item.ok { border-left: 3px solid var(--green); }
+.toast-item.err { border-left: 3px solid var(--red); }
+.toast-item.info { border-left: 3px solid var(--accent); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Views ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── Alert Banner ── */
+.alerts-area {
+  margin-bottom: 12px;
+}
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  margin-bottom: 6px;
+  border: 1px solid;
+}
+
+.alert-banner.crit {
+  background: var(--red-dim);
+  border-color: rgba(255,61,87,0.3);
+  color: var(--red);
+}
+
+.alert-banner.warn {
+  background: var(--yellow-dim);
+  border-color: rgba(255,193,7,0.3);
+  color: var(--yellow);
+}
+
+/* ── Disk Partitions ── */
+.disk-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.disk-row:last-child { border-bottom: none; }
+
+.disk-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.disk-device { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary); }
+.disk-mount { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.disk-pct { font-family: var(--font-mono); font-size: 12px; }
+
+/* ── Network interfaces ── */
+.iface-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.iface-row:last-child { border-bottom: none; }
+.iface-name { font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); min-width: 80px; }
+.iface-up { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.iface-up.on { background: var(--green); }
+.iface-up.off { background: var(--text-muted); }
+.iface-addr { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+/* ── Overview mini charts ── */
+.overview-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+.overview-row:last-child { margin-bottom: 0; }
+
+/* ── Section tab spacing ── */
+.section-block { margin-bottom: 20px; }
+.section-block:last-child { margin-bottom: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Loading ── */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: var(--bg0);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 1000;
+  transition: opacity 0.4s ease;
+}
+
+#loading.hidden { opacity: 0; pointer-events: none; }
+
+.loading-logo {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--accent);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.loading-bar {
+  width: 200px;
+  height: 2px;
+  background: var(--bg3);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  animation: loadprog 1.2s ease forwards;
+}
+
+@keyframes loadprog {
+  to { width: 100%; }
+}
+
+.loading-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+
+/* ── CPU Time Breakdown ── */
+.cpu-time-bars {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+  margin-top: 6px;
+}
+
+.cpu-time-seg {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.seg-user { background: var(--cpu-color); }
+.seg-sys { background: var(--purple); }
+.seg-wait { background: var(--orange); }
+.seg-idle { background: var(--bg3); }
+
+.cpu-time-legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 6px; height: 6px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Action bar for selected process ── */
+#proc-actions {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+#proc-actions.visible { display: flex; }
+
+.proc-sel-info {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.proc-sel-info strong { color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loading-logo">SYSMONITOR</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  <div class="loading-sub">INITIALIZING SENSORS...</div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="20" height="20" rx="2" stroke="#00d4ff" stroke-width="1.5"/>
+          <path d="M5 14 L8 9 L11 12 L14 7 L17 10" stroke="#00e676" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="11" cy="11" r="1.5" fill="#00d4ff"/>
+        </svg>
+      </div>
+      SYSMONITOR
+    </div>
+    <div class="header-status">
+      <div class="status-dot" id="conn-dot"></div>
+      <span id="conn-label">LIVE</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-uptime" id="uptime-display">UP: <span>—</span></div>
+    <div class="refresh-rate">
+      <span data-i18n="refresh">Refresh</span>
+      <select id="refresh-select">
+        <option value="1000">1s</option>
+        <option value="2000" selected>2s</option>
+        <option value="5000">5s</option>
+      </select>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('zh')">中文</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- ── Sidebar ── -->
+    <div class="sidebar">
+      <div class="nav-section" data-i18n="nav_monitor">MONITOR</div>
+
+      <div class="nav-item active" onclick="showView('overview')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2h5v5H2zm7 0h5v5H9zm-7 7h5v5H2zm7 7h5v5H9z" opacity="0.5"/>
+          <rect x="2" y="2" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="9" y="2" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="2" y="9" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="9" y="9" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_overview">Overview</span>
+        <span class="nav-badge ok" id="nav-cpu-badge">—</span>
+      </div>
+
+      <div class="nav-item" onclick="showView('cpu')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="4" y="4" width="8" height="8" rx="1"/>
+          <path d="M6 1v3M10 1v3M6 12v3M10 12v3M1 6h3M1 10h3M12 6h3M12 10h3"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_cpu">CPU</span>
+        <span class="nav-badge ok" id="nav-cpu-badge2">—</span>
+      </div>
+
+      <div class="nav-item" onclick="showView('gpu')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="1" y="4" width="14" height="8" rx="1"/>
+          <path d="M4 4V2M8 4V2M12 4V2M4 12v2M8 12v2M12 12v2"/>
+          <rect x="4" y="6" width="4" height="4" rx="0.5"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_gpu">GPU</span>
+        <span class="nav-badge ok" id="nav-gpu-badge">—</span>
+      </div>
+
+      <div class="nav-item" onclick="showView('memory')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="1" y="5" width="14" height="6" rx="1"/>
+          <path d="M4 5V3M7 5V3M10 5V3M13 5V3M4 11v2M7 11v2M10 11v2M13 11v2"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_mem">Memory</span>
+        <span class="nav-badge ok" id="nav-mem-badge">—</span>
+      </div>
+
+      <div class="nav-item" onclick="showView('disk')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <ellipse cx="8" cy="8" rx="7" ry="4"/>
+          <path d="M1 8v4c0 2.2 3.1 4 7 4s7-1.8 7-4V8"/>
+          <circle cx="11" cy="8" r="1" fill="currentColor" stroke="none"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_disk">Disk</span>
+        <span class="nav-badge ok" id="nav-disk-badge">—</span>
+      </div>
+
+      <div class="nav-item" onclick="showView('network')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M8 2 L14 8 L8 14 L2 8 Z"/>
+          <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+          <path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke-dasharray="2 1"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_net">Network</span>
+      </div>
+
+      <div class="nav-section" style="margin-top:8px" data-i18n="nav_control">CONTROL</div>
+
+      <div class="nav-item" onclick="showView('processes')">
+        <svg class="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M2 4h12M2 8h8M2 12h10"/>
+        </svg>
+        <span class="nav-label" data-i18n="nav_proc">Processes</span>
+        <span class="nav-badge ok" id="nav-proc-badge">—</span>
+      </div>
+
+      <!-- Mini bars -->
+      <div style="margin-top:16px; border-top: 1px solid var(--border); padding-top: 12px;">
+        <div class="mini-bar-row">
+          <div class="mini-bar-label"><span>CPU</span><span id="sb-cpu">—</span></div>
+          <div class="mini-bar-track"><div class="mini-bar-fill" id="sb-cpu-bar" style="background:var(--cpu-color); width:0%"></div></div>
+        </div>
+        <div class="mini-bar-row">
+          <div class="mini-bar-label"><span>GPU</span><span id="sb-gpu">—</span></div>
+          <div class="mini-bar-track"><div class="mini-bar-fill" id="sb-gpu-bar" style="background:var(--gpu-color); width:0%"></div></div>
+        </div>
+        <div class="mini-bar-row">
+          <div class="mini-bar-label"><span data-i18n="mem_label">MEM</span><span id="sb-mem">—</span></div>
+          <div class="mini-bar-track"><div class="mini-bar-fill" id="sb-mem-bar" style="background:var(--mem-color); width:0%"></div></div>
+        </div>
+        <div class="mini-bar-row">
+          <div class="mini-bar-label"><span data-i18n="disk_label">DISK</span><span id="sb-disk">—</span></div>
+          <div class="mini-bar-track"><div class="mini-bar-fill" id="sb-disk-bar" style="background:var(--disk-color); width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Content Area ── -->
+    <div class="content">
+      <div id="alerts-area" class="alerts-area"></div>
+
+      <!-- ════ OVERVIEW ════ -->
+      <div id="view-overview" class="view active">
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="overview_title">SYSTEM OVERVIEW</span>
+          </div>
+          <div class="grid-4" id="overview-cards">
+            <!-- CPU Card -->
+            <div class="card" onclick="showView('cpu')">
+              <div class="card-header">
+                <span class="card-title">CPU</span>
+                <span class="temp-display" id="ov-cpu-temp">—</span>
+              </div>
+              <div class="gauge-container">
+                <div class="gauge-ring">
+                  <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="30" fill="none" stroke="var(--bg3)" stroke-width="5"/>
+                    <circle id="ov-cpu-ring" cx="36" cy="36" r="30" fill="none" stroke="var(--cpu-color)" stroke-width="5"
+                      stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"
+                      style="transition: stroke-dashoffset 0.6s ease"/>
+                  </svg>
+                  <div class="gauge-ring-text">
+                    <div class="gauge-ring-pct" id="ov-cpu-pct" style="color:var(--cpu-color)">0</div>
+                    <div class="gauge-ring-label">%</div>
+                  </div>
+                </div>
+                <div style="flex:1">
+                  <div class="stat-item"><div class="stat-label" data-i18n="cores">Cores</div><div class="stat-val" id="ov-cpu-cores">—</div></div>
+                  <div class="stat-item" style="margin-top:6px"><div class="stat-label" data-i18n="freq">Freq</div><div class="stat-val" id="ov-cpu-freq">—</div></div>
+                  <div class="stat-item" style="margin-top:6px"><div class="stat-label">Load</div><div class="stat-val" id="ov-load">—</div></div>
+                </div>
+              </div>
+            </div>
+            <!-- GPU Card -->
+            <div class="card" onclick="showView('gpu')">
+              <div class="card-header">
+                <span class="card-title">GPU</span>
+                <span class="temp-display" id="ov-gpu-temp">—</span>
+              </div>
+              <div class="gauge-container">
+                <div class="gauge-ring">
+                  <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="30" fill="none" stroke="var(--bg3)" stroke-width="5"/>
+                    <circle id="ov-gpu-ring" cx="36" cy="36" r="30" fill="none" stroke="var(--gpu-color)" stroke-width="5"
+                      stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"
+                      style="transition: stroke-dashoffset 0.6s ease"/>
+                  </svg>
+                  <div class="gauge-ring-text">
+                    <div class="gauge-ring-pct" id="ov-gpu-pct" style="color:var(--gpu-color)">0</div>
+                    <div class="gauge-ring-label">%</div>
+                  </div>
+                </div>
+                <div style="flex:1">
+                  <div class="stat-item"><div class="stat-label" data-i18n="vram">VRAM</div><div class="stat-val" id="ov-gpu-vram">—</div></div>
+                  <div class="stat-item" style="margin-top:6px"><div class="stat-label" data-i18n="power">Power</div><div class="stat-val" id="ov-gpu-power">—</div></div>
+                  <div class="stat-item" style="margin-top:6px"><div class="stat-label">Vendor</div><div class="stat-val" id="ov-gpu-vendor" style="font-size:10px">—</div></div>
+                </div>
+              </div>
+            </div>
+            <!-- MEM Card -->
+            <div class="card" onclick="showView('memory')">
+              <div class="card-header">
+                <span class="card-title" data-i18n="memory">MEMORY</span>
+                <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)" id="ov-mem-swap">SWAP —</span>
+              </div>
+              <div class="gauge-container">
+                <div class="gauge-ring">
+                  <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="30" fill="none" stroke="var(--bg3)" stroke-width="5"/>
+                    <circle id="ov-mem-ring" cx="36" cy="36" r="30" fill="none" stroke="var(--mem-color)" stroke-width="5"
+                      stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"
+                      style="transition: stroke-dashoffset 0.6s ease"/>
+                  </svg>
+                  <div class="gauge-ring-text">
+                    <div class="gauge-ring-pct" id="ov-mem-pct" style="color:var(--mem-color)">0</div>
+                    <div class="gauge-ring-label">%</div>
+                  </div>
+                </div>
+                <div style="flex:1">
+                  <div class="stat-item"><div class="stat-label" data-i18n="used">Used</div><div class="stat-val" id="ov-mem-used">—</div></div>
+                  <div class="stat-item" style="margin-top:6px"><div class="stat-label">Total</div><div class="stat-val" id="ov-mem-total">—</div></div>
+                  <div class="stat-item" style="margin-top:6px"><div class="stat-label" data-i18n="cached">Cached</div><div class="stat-val" id="ov-mem-cached">—</div></div>
+                </div>
+              </div>
+            </div>
+            <!-- NET Card -->
+            <div class="card" onclick="showView('network')">
+              <div class="card-header">
+                <span class="card-title" data-i18n="network">NETWORK</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div>
+                  <div class="stat-label" style="margin-bottom:3px">▲ <span data-i18n="upload">Upload</span></div>
+                  <div class="stat-val" id="ov-net-up" style="font-size:15px;color:var(--net-color)">—</div>
+                </div>
+                <div>
+                  <div class="stat-label" style="margin-bottom:3px">▼ <span data-i18n="download">Download</span></div>
+                  <div class="stat-val" id="ov-net-down" style="font-size:15px;color:var(--accent)">—</div>
+                </div>
+                <div class="stats-row" style="margin-top:0">
+                  <div class="stat-item"><div class="stat-label">TX Total</div><div class="stat-val" id="ov-net-tx" style="font-size:10px">—</div></div>
+                  <div class="stat-item"><div class="stat-label">RX Total</div><div class="stat-val" id="ov-net-rx" style="font-size:10px">—</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History charts -->
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="history">HISTORY (60s)</span>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><span class="card-title">CPU %</span></div>
+              <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">GPU %</span></div>
+              <div class="chart-wrap"><canvas id="chart-gpu"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title" data-i18n="memory">Memory</span></div>
+              <div class="chart-wrap"><canvas id="chart-mem"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title" data-i18n="network">Network</span></div>
+              <div class="chart-wrap"><canvas id="chart-net"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ CPU VIEW ════ -->
+      <div id="view-cpu" class="view">
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title">CPU</span>
+          </div>
+          <div class="grid-3">
+            <div class="card">
+              <div class="card-header"><span class="card-title" data-i18n="utilization">Utilization</span></div>
+              <div class="card-value" id="cpu-util">0<sup>%</sup></div>
+              <div class="pbar pbar-cpu"><div class="pbar-fill" id="cpu-util-bar" style="width:0%"></div></div>
+              <div class="cpu-time-bars" id="cpu-time-bars">
+                <div class="cpu-time-seg seg-user" id="seg-user" style="width:0%"></div>
+                <div class="cpu-time-seg seg-sys" id="seg-sys" style="width:0%"></div>
+                <div class="cpu-time-seg seg-wait" id="seg-wait" style="width:0%"></div>
+                <div class="cpu-time-seg seg-idle" id="seg-idle" style="width:100%"></div>
+              </div>
+              <div class="cpu-time-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:var(--cpu-color)"></div><span data-i18n="user">User</span> <span id="leg-user">—</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div><span data-i18n="system">Sys</span> <span id="leg-sys">—</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>I/O Wait <span id="leg-wait">—</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--bg3)"></div><span data-i18n="idle">Idle</span> <span id="leg-idle">—</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title" data-i18n="frequency">Frequency</span></div>
+              <div class="card-value" id="cpu-freq-val">0<sup>MHz</sup></div>
+              <div class="stats-row">
+                <div class="stat-item"><div class="stat-label">Max</div><div class="stat-val" id="cpu-freq-max">—</div></div>
+                <div class="stat-item"><div class="stat-label">Phys</div><div class="stat-val" id="cpu-phys">—</div></div>
+                <div class="stat-item"><div class="stat-label">Logic</div><div class="stat-val" id="cpu-logic">—</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title" data-i18n="load_avg">Load Average</span></div>
+              <div class="stats-row" style="margin-top:4px">
+                <div class="stat-item"><div class="stat-label">1 min</div><div class="stat-val" id="load1" style="font-size:20px;color:var(--cpu-color)">—</div></div>
+                <div class="stat-item"><div class="stat-label">5 min</div><div class="stat-val" id="load5" style="font-size:20px">—</div></div>
+                <div class="stat-item"><div class="stat-label">15 min</div><div class="stat-val" id="load15" style="font-size:20px">—</div></div>
+              </div>
+              <div class="stats-row" style="margin-top:12px">
+                <div class="stat-item"><div class="stat-label" data-i18n="temperature">Temp</div><div class="temp-display" id="cpu-temp-main">—</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Per-core -->
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="per_core">PER-CORE USAGE</span>
+          </div>
+          <div class="card">
+            <div class="cores-grid" id="cores-grid"></div>
+          </div>
+        </div>
+        <!-- Temp sensors -->
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="temp_sensors">TEMPERATURE SENSORS</span>
+          </div>
+          <div class="card">
+            <div id="temp-sensors" class="grid-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ GPU VIEW ════ -->
+      <div id="view-gpu" class="view">
+        <div class="section-header">
+          <span class="section-accent">//</span>
+          <span class="section-title">GPU</span>
+        </div>
+        <div id="gpu-cards" class="grid-2"></div>
+      </div>
+
+      <!-- ════ MEMORY VIEW ════ -->
+      <div id="view-memory" class="view">
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="nav_mem">MEMORY</span>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">RAM</span>
+                <span class="card-title" id="mem-pct-label" style="color:var(--mem-color)">0%</span>
+              </div>
+              <div class="card-value" id="mem-used-val">0<sup>GB</sup></div>
+              <div class="pbar pbar-mem"><div class="pbar-fill" id="mem-bar" style="width:0%"></div></div>
+              <div class="stats-row" style="margin-top:10px">
+                <div class="stat-item"><div class="stat-label">Total</div><div class="stat-val" id="mem-total">—</div></div>
+                <div class="stat-item"><div class="stat-label" data-i18n="available">Avail</div><div class="stat-val" id="mem-avail">—</div></div>
+                <div class="stat-item"><div class="stat-label" data-i18n="buffers">Buffers</div><div class="stat-val" id="mem-buf">—</div></div>
+                <div class="stat-item"><div class="stat-label" data-i18n="cached">Cached</div><div class="stat-val" id="mem-cache">—</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">SWAP</span>
+                <span class="card-title" id="swap-pct-label" style="color:var(--text-secondary)">0%</span>
+              </div>
+              <div class="card-value" id="swap-used-val">0<sup>GB</sup></div>
+              <div class="pbar pbar-mem"><div class="pbar-fill" id="swap-bar" style="width:0%"></div></div>
+              <div class="stats-row" style="margin-top:10px">
+                <div class="stat-item"><div class="stat-label">Total</div><div class="stat-val" id="swap-total">—</div></div>
+                <div class="stat-item"><div class="stat-label" data-i18n="used">Used</div><div class="stat-val" id="swap-used">—</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="history">MEMORY HISTORY</span>
+          </div>
+          <div class="card">
+            <div class="chart-wrap" style="height:120px"><canvas id="chart-mem2"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ DISK VIEW ════ -->
+      <div id="view-disk" class="view">
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="nav_disk">DISK</span>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><span class="card-title">Read Speed</span></div>
+              <div class="card-value" id="disk-read-spd">0<sup>MB/s</sup></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">Write Speed</span></div>
+              <div class="card-value" id="disk-write-spd">0<sup>MB/s</sup></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="partitions">PARTITIONS</span>
+          </div>
+          <div class="card">
+            <div id="disk-partitions">Loading...</div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title">I/O HISTORY</span>
+          </div>
+          <div class="card">
+            <div class="chart-wrap" style="height:120px"><canvas id="chart-disk"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ NETWORK VIEW ════ -->
+      <div id="view-network" class="view">
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="nav_net">NETWORK</span>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><span class="card-title">▲ <span data-i18n="upload">Upload</span></span></div>
+              <div class="card-value" id="net-up-val" style="color:var(--net-color)">0<sup>KB/s</sup></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">▼ <span data-i18n="download">Download</span></span></div>
+              <div class="card-value" id="net-down-val" style="color:var(--accent)">0<sup>KB/s</sup></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title">BANDWIDTH HISTORY</span>
+          </div>
+          <div class="card">
+            <div class="chart-wrap" style="height:120px"><canvas id="chart-net2"></canvas></div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-header">
+            <span class="section-accent">//</span>
+            <span class="section-title" data-i18n="interfaces">INTERFACES</span>
+          </div>
+          <div class="card" id="net-interfaces">Loading...</div>
+        </div>
+      </div>
+
+      <!-- ════ PROCESSES VIEW ════ -->
+      <div id="view-processes" class="view">
+        <div class="section-header">
+          <span class="section-accent">//</span>
+          <span class="section-title" data-i18n="nav_proc">PROCESSES</span>
+          <span style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--text-muted)" id="proc-count"></span>
+        </div>
+
+        <div id="proc-actions">
+          <span class="proc-sel-info" id="proc-sel-info">—</span>
+          <button class="btn btn-warn" onclick="procAction('suspend')" data-i18n="suspend">Suspend</button>
+          <button class="btn btn-ok" onclick="procAction('resume')" data-i18n="resume">Resume</button>
+          <button class="btn btn-warn" onclick="procAction('terminate')" data-i18n="terminate">Terminate</button>
+          <button class="btn btn-danger" onclick="procAction('kill')" data-i18n="kill">Kill</button>
+          <button class="btn" onclick="deselectProc()">✕</button>
+        </div>
+
+        <div class="process-controls">
+          <input type="text" class="search-input" id="proc-search" placeholder="Search processes..." oninput="filterProcs()">
+          <select class="sort-select" id="proc-sort" onchange="reloadProcs()">
+            <option value="cpu">Sort: CPU%</option>
+            <option value="mem">Sort: MEM%</option>
+          </select>
+          <button class="btn btn-accent" onclick="reloadProcs()" data-i18n="refresh">⟳ Refresh</button>
+        </div>
+
+        <div class="proc-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="setSortCol('pid')" data-i18n="th_pid">PID</th>
+                <th onclick="setSortCol('name')" data-i18n="th_name">Name</th>
+                <th onclick="setSortCol('user')" data-i18n="th_user">User</th>
+                <th onclick="setSortCol('status')" data-i18n="th_status">Status</th>
+                <th onclick="setSortCol('cpu')" class="sorted" data-i18n="th_cpu">CPU%</th>
+                <th onclick="setSortCol('mem')" data-i18n="th_mem">MEM%</th>
+                <th onclick="setSortCol('mem_rss')" data-i18n="th_rss">RSS</th>
+                <th onclick="setSortCol('threads')" data-i18n="th_threads">Threads</th>
+                <th onclick="setSortCol('nice')" data-i18n="th_nice">Nice</th>
+              </tr>
+            </thead>
+            <tbody id="proc-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// i18n
+// ═══════════════════════════════════════════════════════
+const i18n = {
+  en: {
+    nav_monitor: 'MONITOR', nav_control: 'CONTROL', nav_overview: 'Overview',
+    nav_cpu: 'CPU', nav_gpu: 'GPU', nav_mem: 'Memory', nav_disk: 'Disk',
+    nav_net: 'Network', nav_proc: 'Processes',
+    overview_title: 'SYSTEM OVERVIEW', history: 'HISTORY (60s)',
+    cores: 'Cores', freq: 'Freq', utilization: 'Utilization', frequency: 'Frequency',
+    load_avg: 'Load Avg', temperature: 'Temp', per_core: 'PER-CORE USAGE',
+    temp_sensors: 'TEMPERATURE SENSORS', vram: 'VRAM', power: 'Power',
+    memory: 'MEMORY', used: 'Used', available: 'Avail', buffers: 'Buffers',
+    cached: 'Cached', upload: 'Upload', download: 'Download', network: 'Network',
+    interfaces: 'INTERFACES', partitions: 'PARTITIONS', user: 'User', system: 'Sys',
+    idle: 'Idle', refresh: 'Refresh', mem_label: 'MEM', disk_label: 'DISK',
+    suspend: 'Suspend', resume: 'Resume', terminate: 'Terminate', kill: 'Kill -9',
+    th_pid: 'PID', th_name: 'Name', th_user: 'User', th_status: 'Status',
+    th_cpu: 'CPU%', th_mem: 'MEM%', th_rss: 'RSS', th_threads: 'Threads', th_nice: 'Nice',
+    conn_live: 'LIVE', no_gpu: 'No GPU',
+  },
+  zh: {
+    nav_monitor: '监控', nav_control: '控制', nav_overview: '总览',
+    nav_cpu: '处理器', nav_gpu: '显卡', nav_mem: '内存', nav_disk: '磁盘',
+    nav_net: '网络', nav_proc: '进程',
+    overview_title: '系统总览', history: '历史记录 (60秒)',
+    cores: '核心数', freq: '频率', utilization: '利用率', frequency: '频率',
+    load_avg: '平均负载', temperature: '温度', per_core: '逐核使用率',
+    temp_sensors: '温度传感器', vram: '显存', power: '功耗',
+    memory: '内存', used: '已用', available: '可用', buffers: '缓冲区',
+    cached: '缓存', upload: '上传', download: '下载', network: '网络',
+    interfaces: '网络接口', partitions: '磁盘分区', user: '用户态', system: '内核态',
+    idle: '空闲', refresh: '刷新', mem_label: '内存', disk_label: '磁盘',
+    suspend: '挂起', resume: '恢复', terminate: '终止', kill: '强制杀死',
+    th_pid: 'PID', th_name: '进程名', th_user: '用户', th_status: '状态',
+    th_cpu: 'CPU%', th_mem: '内存%', th_rss: '物理内存', th_threads: '线程数', th_nice: '优先级',
+    conn_live: '实时', no_gpu: '未检测到GPU',
+  }
+};
+
+let lang = 'en';
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === l || (l==='zh' && b.textContent.trim()==='中文')));
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18n[l][key]) el.textContent = i18n[l][key];
+  });
+  document.documentElement.style.setProperty('--font-sans', l === 'zh'
+    ? "'IBM Plex Sans', 'Noto Sans SC', sans-serif"
+    : "'IBM Plex Sans', sans-serif"
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Chart.js lightweight inline
+// ═══════════════════════════════════════════════════════
+const CHART_POINTS = 60;
+
+function makeChart(canvasId, color, color2) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+  const ctx = canvas.getContext('2d');
+  const data1 = new Array(CHART_POINTS).fill(0);
+  const data2 = color2 ? new Array(CHART_POINTS).fill(0) : null;
+
+  return {
+    data1, data2,
+    push(v1, v2) {
+      data1.push(v1); data1.shift();
+      if (data2 && v2 !== undefined) { data2.push(v2); data2.shift(); }
+    },
+    draw(max) {
+      const w = canvas.width = canvas.offsetWidth;
+      const h = canvas.height = canvas.offsetHeight;
+      ctx.clearRect(0, 0, w, h);
+      const m = max || 100;
+      const draw = (arr, clr, fill) => {
+        ctx.beginPath();
+        arr.forEach((v, i) => {
+          const x = (i / (CHART_POINTS - 1)) * w;
+          const y = h - (v / m) * h * 0.9 - h * 0.05;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = clr;
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        if (fill) {
+          ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+          const grad = ctx.createLinearGradient(0, 0, 0, h);
+          grad.addColorStop(0, clr + '30');
+          grad.addColorStop(1, clr + '00');
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+      };
+      draw(data1, color, true);
+      if (data2) draw(data2, color2, true);
+      // Grid
+      ctx.strokeStyle = 'rgba(30,45,61,0.8)';
+      ctx.lineWidth = 1;
+      [0.25, 0.5, 0.75, 1.0].forEach(t => {
+        const y = h - t * h * 0.9 - h * 0.05;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      });
+    }
+  };
+}
+
+const charts = {};
+window.addEventListener('load', () => {
+  charts.cpu  = makeChart('chart-cpu',  '#00d4ff');
+  charts.gpu  = makeChart('chart-gpu',  '#00e676');
+  charts.mem  = makeChart('chart-mem',  '#ffc107');
+  charts.net  = makeChart('chart-net',  '#ff9a3c', '#00d4ff');
+  charts.mem2 = makeChart('chart-mem2', '#ffc107');
+  charts.disk = makeChart('chart-disk', '#b388ff', '#ff6d00');
+  charts.net2 = makeChart('chart-net2', '#ff9a3c', '#00d4ff');
+});
+
+function drawAll(netMax, diskMax) {
+  charts.cpu?.draw(100);
+  charts.gpu?.draw(100);
+  charts.mem?.draw(100);
+  charts.net?.draw(netMax);
+  charts.mem2?.draw(100);
+  charts.disk?.draw(diskMax);
+  charts.net2?.draw(netMax);
+}
+
+// ═══════════════════════════════════════════════════════
+// View navigation
+// ═══════════════════════════════════════════════════════
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(name)) n.classList.add('active');
+  });
+  if (name === 'processes') reloadProcs();
+  if (name === 'disk') loadDisks();
+  if (name === 'network') loadInterfaces();
+}
+
+// ═══════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════
+function fmtBytes(b, dec = 1) {
+  if (b < 1024) return b.toFixed(0) + ' B';
+  if (b < 1048576) return (b/1024).toFixed(dec) + ' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(dec) + ' MB';
+  return (b/1073741824).toFixed(dec) + ' GB';
+}
+
+function fmtSpeed(bps) {
+  if (bps < 1024) return bps.toFixed(0) + ' B/s';
+  if (bps < 1048576) return (bps/1024).toFixed(1) + ' KB/s';
+  if (bps < 1073741824) return (bps/1048576).toFixed(2) + ' MB/s';
+  return (bps/1073741824).toFixed(2) + ' GB/s';
+}
+
+function fmtUptime(s) {
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600),
+        m = Math.floor((s%3600)/60), ss = s%60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m ${ss}s`;
+  return `${m}m ${ss}s`;
+}
+
+function colorByPct(pct) {
+  if (pct >= 90) return 'var(--red)';
+  if (pct >= 70) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function barClass(pct) {
+  if (pct >= 90) return 'crit';
+  if (pct >= 70) return 'warn';
+  return '';
+}
+
+function tempClass(t) {
+  if (!t || t === 0) return '';
+  if (t >= 85) return 'temp-crit';
+  if (t >= 70) return 'temp-warn';
+  return 'temp-ok';
+}
+
+function setRing(id, pct, color) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const circumference = 188.5;
+  el.style.strokeDashoffset = circumference * (1 - pct / 100);
+  el.style.stroke = color || colorByPct(pct);
+}
+
+function setPbar(id, pct) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.width = pct + '%';
+  el.className = 'pbar-fill ' + barClass(pct);
+}
+
+// ═══════════════════════════════════════════════════════
+// Alerts
+// ═══════════════════════════════════════════════════════
+function checkAlerts(d) {
+  const area = document.getElementById('alerts-area');
+  const alerts = [];
+  if (d.cpu.percent >= 90) alerts.push({ cls: 'crit', msg: `CPU critical: ${d.cpu.percent.toFixed(1)}%` });
+  else if (d.cpu.percent >= 75) alerts.push({ cls: 'warn', msg: `CPU high: ${d.cpu.percent.toFixed(1)}%` });
+  if (d.memory.percent >= 90) alerts.push({ cls: 'crit', msg: `Memory critical: ${d.memory.percent.toFixed(1)}%` });
+  d.cpu.temps.forEach(t => {
+    if (t.current >= 85) alerts.push({ cls: 'crit', msg: `CPU Temp critical: ${t.label} ${t.current}°C` });
+  });
+  area.innerHTML = alerts.map(a => `<div class="alert-banner ${a.cls}">⚠ ${a.msg}</div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// Stats update
+// ═══════════════════════════════════════════════════════
+let netHistMax = 1024 * 1024, diskHistMax = 1024 * 1024 * 10;
+
+function updateStats(d) {
+  checkAlerts(d);
+
+  // Uptime
+  document.getElementById('uptime-display').innerHTML = `UP: <span>${fmtUptime(d.uptime)}</span>`;
+
+  // ── CPU ──
+  const cpu = d.cpu;
+  const cpuColor = colorByPct(cpu.percent);
+
+  // Sidebar
+  document.getElementById('sb-cpu').textContent = cpu.percent.toFixed(0) + '%';
+  document.getElementById('sb-cpu-bar').style.width = cpu.percent + '%';
+
+  // Nav badge
+  ['nav-cpu-badge','nav-cpu-badge2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = cpu.percent.toFixed(0)+'%'; el.className = 'nav-badge '+barClass(cpu.percent)||'ok'; }
+  });
+
+  // Overview ring
+  setRing('ov-cpu-ring', cpu.percent, cpuColor);
+  document.getElementById('ov-cpu-pct').textContent = cpu.percent.toFixed(0);
+  document.getElementById('ov-cpu-pct').style.color = cpuColor;
+  document.getElementById('ov-cpu-cores').textContent = `${cpu.count_physical}P / ${cpu.count_logical}L`;
+  document.getElementById('ov-cpu-freq').textContent = cpu.freq_mhz > 1000 ? (cpu.freq_mhz/1000).toFixed(2)+' GHz' : cpu.freq_mhz.toFixed(0)+' MHz';
+  document.getElementById('ov-load').textContent = cpu.load_avg[0].toFixed(2);
+
+  const mainTemp = cpu.temps.length > 0 ? cpu.temps[0].current : null;
+  if (mainTemp) {
+    const tc = tempClass(mainTemp);
+    document.getElementById('ov-cpu-temp').textContent = mainTemp.toFixed(0) + '°C';
+    document.getElementById('ov-cpu-temp').className = 'temp-display ' + tc;
+    document.getElementById('cpu-temp-main').textContent = mainTemp.toFixed(0) + '°C';
+    document.getElementById('cpu-temp-main').className = 'temp-display ' + tc;
+  }
+
+  // CPU view
+  document.getElementById('cpu-util').innerHTML = `${cpu.percent.toFixed(1)}<sup>%</sup>`;
+  setPbar('cpu-util-bar', cpu.percent);
+  document.getElementById('cpu-util-bar').style.background = cpuColor;
+
+  // Time breakdown
+  const total = cpu.user + cpu.system + (cpu.iowait||0) + cpu.idle + 0.001;
+  document.getElementById('seg-user').style.width = (cpu.user/total*100)+'%';
+  document.getElementById('seg-sys').style.width = (cpu.system/total*100)+'%';
+  document.getElementById('seg-wait').style.width = ((cpu.iowait||0)/total*100)+'%';
+  document.getElementById('seg-idle').style.width = (cpu.idle/total*100)+'%';
+  document.getElementById('leg-user').textContent = cpu.user.toFixed(1)+'%';
+  document.getElementById('leg-sys').textContent = cpu.system.toFixed(1)+'%';
+  document.getElementById('leg-wait').textContent = (cpu.iowait||0).toFixed(1)+'%';
+  document.getElementById('leg-idle').textContent = cpu.idle.toFixed(1)+'%';
+
+  document.getElementById('cpu-freq-val').innerHTML = cpu.freq_mhz.toFixed(0) + '<sup>MHz</sup>';
+  document.getElementById('cpu-freq-max').textContent = cpu.freq_max > 0 ? (cpu.freq_max/1000).toFixed(2)+' GHz' : '—';
+  document.getElementById('cpu-phys').textContent = cpu.count_physical;
+  document.getElementById('cpu-logic').textContent = cpu.count_logical;
+  document.getElementById('load1').textContent = cpu.load_avg[0].toFixed(2);
+  document.getElementById('load5').textContent = cpu.load_avg[1].toFixed(2);
+  document.getElementById('load15').textContent = cpu.load_avg[2].toFixed(2);
+
+  // Per-core grid
+  const cgrid = document.getElementById('cores-grid');
+  if (cgrid) {
+    if (cgrid.children.length !== cpu.per_core.length) {
+      cgrid.innerHTML = cpu.per_core.map((v, i) => `
+        <div class="core-cell">
+          <div class="core-cell-label">C${i}</div>
+          <div class="core-cell-val" id="core-val-${i}" style="color:var(--cpu-color)">0%</div>
+          <div class="core-cell-freq" id="core-freq-${i}">—</div>
+          <div class="core-mini-bar"><div class="core-mini-bar-fill" id="core-bar-${i}" style="width:0%"></div></div>
+        </div>`).join('');
+    }
+    cpu.per_core.forEach((v, i) => {
+      const el = document.getElementById(`core-val-${i}`);
+      const bar = document.getElementById(`core-bar-${i}`);
+      const fq = document.getElementById(`core-freq-${i}`);
+      if (el) { el.textContent = v.toFixed(0)+'%'; el.style.color = colorByPct(v); }
+      if (bar) bar.style.width = v + '%';
+      if (fq && cpu.freq_per_core[i]) fq.textContent = (cpu.freq_per_core[i]/1000).toFixed(1)+'G';
+    });
+  }
+
+  // Temp sensors
+  const tsEl = document.getElementById('temp-sensors');
+  if (tsEl && cpu.temps.length) {
+    tsEl.innerHTML = cpu.temps.map(t => `
+      <div style="padding:8px;background:var(--bg2);border-radius:4px;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">${t.label||'Sensor'}</div>
+        <div class="temp-display ${tempClass(t.current)}" style="font-size:18px">${t.current.toFixed(0)}°C</div>
+        ${t.critical ? `<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-top:2px">crit ${t.critical.toFixed(0)}°</div>` : ''}
+      </div>`).join('');
+  } else if (tsEl) {
+    tsEl.innerHTML = '<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">No temperature sensors detected</span>';
+  }
+
+  // ── GPU ──
+  const gpu = d.gpu[0] || {};
+  const gpuPct = gpu.utilization || 0;
+  const gpuColor = colorByPct(gpuPct);
+
+  document.getElementById('sb-gpu').textContent = gpuPct.toFixed(0) + '%';
+  document.getElementById('sb-gpu-bar').style.width = gpuPct + '%';
+  const gpuBadge = document.getElementById('nav-gpu-badge');
+  if (gpuBadge) { gpuBadge.textContent = gpuPct.toFixed(0)+'%'; }
+
+  setRing('ov-gpu-ring', gpuPct, gpuColor);
+  document.getElementById('ov-gpu-pct').textContent = gpuPct.toFixed(0);
+  document.getElementById('ov-gpu-pct').style.color = gpuColor;
+  const vramPct = gpu.mem_total > 0 ? (gpu.mem_used/gpu.mem_total*100).toFixed(0)+'%' : '—';
+  document.getElementById('ov-gpu-vram').textContent = gpu.mem_total > 0 ? `${gpu.mem_used.toFixed(0)}/${gpu.mem_total.toFixed(0)} MB` : '—';
+  document.getElementById('ov-gpu-power').textContent = gpu.power > 0 ? gpu.power.toFixed(0)+' W' : '—';
+  document.getElementById('ov-gpu-vendor').textContent = gpu.vendor || '—';
+  if (gpu.temperature) {
+    document.getElementById('ov-gpu-temp').textContent = gpu.temperature.toFixed(0)+'°C';
+    document.getElementById('ov-gpu-temp').className = 'temp-display '+tempClass(gpu.temperature);
+  }
+
+  // GPU cards view
+  const gpuCardsEl = document.getElementById('gpu-cards');
+  if (gpuCardsEl) {
+    gpuCardsEl.innerHTML = d.gpu.map((g, i) => `
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">GPU ${i}: ${g.name}</span>
+          <span class="nav-badge ${barClass(g.utilization)||'ok'}">${g.vendor}</span>
+        </div>
+        <div class="stats-row" style="margin-top:4px">
+          <div class="stat-item"><div class="stat-label">Utilization</div><div class="stat-val" style="font-size:22px;color:${colorByPct(g.utilization)}">${g.utilization.toFixed(1)}<span style="font-size:12px">%</span></div></div>
+          <div class="stat-item"><div class="stat-label">Temperature</div><div class="temp-display ${tempClass(g.temperature)}" style="font-size:22px">${g.temperature > 0 ? g.temperature.toFixed(0)+'°C' : '—'}</div></div>
+          <div class="stat-item"><div class="stat-label">Power</div><div class="stat-val" style="font-size:16px">${g.power > 0 ? g.power.toFixed(0)+' W' : '—'}</div></div>
+        </div>
+        ${g.mem_total > 0 ? `
+        <div style="margin-top:12px">
+          <div class="mini-bar-label" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;margin-bottom:4px">
+            <span>VRAM</span><span>${g.mem_used.toFixed(0)} / ${g.mem_total.toFixed(0)} MB (${(g.mem_used/g.mem_total*100).toFixed(0)}%)</span>
+          </div>
+          <div class="pbar pbar-gpu"><div class="pbar-fill ${barClass(g.mem_used/g.mem_total*100)}" style="width:${(g.mem_used/g.mem_total*100).toFixed(1)}%"></div></div>
+        </div>` : '<div style="margin-top:12px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">No GPU detected — install nvidia-smi or rocm-smi to enable GPU monitoring.</div>'}
+        ${g.clock > 0 ? `<div class="stats-row" style="margin-top:8px"><div class="stat-item"><div class="stat-label">Core Clock</div><div class="stat-val">${g.clock} MHz</div></div></div>` : ''}
+      </div>`).join('');
+  }
+
+  // ── Memory ──
+  const mem = d.memory;
+  document.getElementById('sb-mem').textContent = mem.percent.toFixed(0) + '%';
+  document.getElementById('sb-mem-bar').style.width = mem.percent + '%';
+  const memBadge = document.getElementById('nav-mem-badge');
+  if (memBadge) { memBadge.textContent = mem.percent.toFixed(0)+'%'; memBadge.className = 'nav-badge '+(barClass(mem.percent)||'ok'); }
+
+  setRing('ov-mem-ring', mem.percent, colorByPct(mem.percent));
+  document.getElementById('ov-mem-pct').textContent = mem.percent.toFixed(0);
+  document.getElementById('ov-mem-used').textContent = fmtBytes(mem.used);
+  document.getElementById('ov-mem-total').textContent = fmtBytes(mem.total);
+  document.getElementById('ov-mem-cached').textContent = fmtBytes(mem.cached);
+  document.getElementById('ov-mem-swap').textContent = `SWAP ${mem.swap_percent.toFixed(0)}%`;
+
+  document.getElementById('mem-pct-label').textContent = mem.percent.toFixed(1) + '%';
+  document.getElementById('mem-used-val').innerHTML = (mem.used/1073741824).toFixed(2)+'<sup>GB</sup>';
+  setPbar('mem-bar', mem.percent);
+  document.getElementById('mem-total').textContent = fmtBytes(mem.total);
+  document.getElementById('mem-avail').textContent = fmtBytes(mem.available);
+  document.getElementById('mem-buf').textContent = fmtBytes(mem.buffers);
+  document.getElementById('mem-cache').textContent = fmtBytes(mem.cached);
+
+  document.getElementById('swap-pct-label').textContent = mem.swap_percent.toFixed(1) + '%';
+  document.getElementById('swap-used-val').innerHTML = (mem.swap_used/1073741824).toFixed(2)+'<sup>GB</sup>';
+  setPbar('swap-bar', mem.swap_percent);
+  document.getElementById('swap-total').textContent = fmtBytes(mem.swap_total);
+  document.getElementById('swap-used').textContent = fmtBytes(mem.swap_used);
+
+  // ── Disk ──
+  const disk = d.disk;
+  document.getElementById('sb-disk').textContent = disk.percent.toFixed(0) + '%';
+  document.getElementById('sb-disk-bar').style.width = disk.percent + '%';
+  const diskBadge = document.getElementById('nav-disk-badge');
+  if (diskBadge) { diskBadge.textContent = disk.percent.toFixed(0)+'%'; diskBadge.className = 'nav-badge '+(barClass(disk.percent)||'ok'); }
+
+  document.getElementById('disk-read-spd').innerHTML = (disk.read_speed/1048576).toFixed(2)+'<sup>MB/s</sup>';
+  document.getElementById('disk-write-spd').innerHTML = (disk.write_speed/1048576).toFixed(2)+'<sup>MB/s</sup>';
+
+  // ── Network ──
+  const net = d.network;
+  document.getElementById('ov-net-up').textContent = fmtSpeed(net.sent_speed);
+  document.getElementById('ov-net-down').textContent = fmtSpeed(net.recv_speed);
+  document.getElementById('ov-net-tx').textContent = fmtBytes(net.bytes_sent);
+  document.getElementById('ov-net-rx').textContent = fmtBytes(net.bytes_recv);
+  document.getElementById('net-up-val').innerHTML = fmtSpeed(net.sent_speed).replace(/(\w+\/s)/, '<sup>$1</sup>');
+  document.getElementById('net-down-val').innerHTML = fmtSpeed(net.recv_speed).replace(/(\w+\/s)/, '<sup>$1</sup>');
+
+  // ── Charts ──
+  netHistMax = Math.max(netHistMax, net.sent_speed, net.recv_speed, 1024);
+  diskHistMax = Math.max(diskHistMax, disk.read_speed, disk.write_speed, 1024*1024);
+
+  charts.cpu?.push(cpu.percent);
+  charts.gpu?.push(gpuPct);
+  charts.mem?.push(mem.percent);
+  charts.net?.push(net.sent_speed / netHistMax * 100, net.recv_speed / netHistMax * 100);
+  charts.mem2?.push(mem.percent);
+  charts.disk?.push(disk.read_speed / diskHistMax * 100, disk.write_speed / diskHistMax * 100);
+  charts.net2?.push(net.sent_speed / netHistMax * 100, net.recv_speed / netHistMax * 100);
+  drawAll();
+}
+
+// ═══════════════════════════════════════════════════════
+// Polling
+// ═══════════════════════════════════════════════════════
+let pollInterval = 2000;
+let pollTimer = null;
+
+async function fetchStats() {
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    updateStats(d);
+    document.getElementById('conn-dot').style.background = 'var(--green)';
+    document.getElementById('conn-label').textContent = i18n[lang].conn_live;
+  } catch (e) {
+    document.getElementById('conn-dot').style.background = 'var(--red)';
+    document.getElementById('conn-label').textContent = 'ERR';
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  fetchStats();
+  pollTimer = setInterval(fetchStats, pollInterval);
+}
+
+document.getElementById('refresh-select').addEventListener('change', e => {
+  pollInterval = parseInt(e.target.value);
+  startPolling();
+});
+
+// ═══════════════════════════════════════════════════════
+// Disk partitions
+// ═══════════════════════════════════════════════════════
+async function loadDisks() {
+  try {
+    const r = await fetch('/api/disks');
+    const disks = await r.json();
+    const el = document.getElementById('disk-partitions');
+    el.innerHTML = disks.map(d => `
+      <div class="disk-row">
+        <div class="disk-row-header">
+          <div>
+            <div class="disk-device">${d.device}</div>
+            <div class="disk-mount">${d.mountpoint} (${d.fstype})</div>
+          </div>
+          <div class="disk-pct" style="color:${colorByPct(d.percent)}">${d.percent.toFixed(1)}%</div>
+        </div>
+        <div class="pbar pbar-disk"><div class="pbar-fill ${barClass(d.percent)}" style="width:${d.percent}%"></div></div>
+        <div class="stats-row" style="margin-top:4px">
+          <div class="stat-item"><div class="stat-label">Total</div><div class="stat-val">${fmtBytes(d.total)}</div></div>
+          <div class="stat-item"><div class="stat-label">Used</div><div class="stat-val">${fmtBytes(d.used)}</div></div>
+          <div class="stat-item"><div class="stat-label">Free</div><div class="stat-val">${fmtBytes(d.free)}</div></div>
+        </div>
+      </div>`).join('');
+  } catch (e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// Network interfaces
+// ═══════════════════════════════════════════════════════
+async function loadInterfaces() {
+  try {
+    const r = await fetch('/api/network/interfaces');
+    const ifaces = await r.json();
+    const el = document.getElementById('net-interfaces');
+    el.innerHTML = ifaces.map(i => `
+      <div class="iface-row">
+        <div class="iface-up ${i.isup ? 'on' : 'off'}"></div>
+        <div class="iface-name">${i.name}</div>
+        <div style="flex:1">
+          ${i.addresses.map(a => `<div class="iface-addr">${a.address}</div>`).join('')}
+        </div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${i.speed > 0 ? i.speed+' Mbps' : ''}</div>
+      </div>`).join('');
+  } catch (e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// Processes
+// ═══════════════════════════════════════════════════════
+let procList = [];
+let selectedPid = null;
+let selectedProcName = '';
+let procSortCol = 'cpu';
+let procSortAsc = false;
+
+async function reloadProcs() {
+  const sort = document.getElementById('proc-sort').value;
+  try {
+    const r = await fetch(`/api/processes?sort=${sort}&limit=100`);
+    procList = await r.json();
+    document.getElementById('proc-count').textContent = procList.length + ' processes';
+    const badge = document.getElementById('nav-proc-badge');
+    if (badge) badge.textContent = procList.length;
+    renderProcs();
+  } catch (e) {}
+}
+
+function filterProcs() { renderProcs(); }
+
+function renderProcs() {
+  const q = document.getElementById('proc-search')?.value?.toLowerCase() || '';
+  const filtered = q ? procList.filter(p => p.name.toLowerCase().includes(q) || String(p.pid).includes(q) || p.user.toLowerCase().includes(q)) : procList;
+
+  const tbody = document.getElementById('proc-tbody');
+  tbody.innerHTML = filtered.map(p => {
+    const statusCls = {running:'status-running',sleeping:'status-sleeping','disk-sleep':'status-sleeping',stopped:'status-stopped',zombie:'status-zombie'}[p.status] || 'status-sleeping';
+    const isSel = p.pid === selectedPid;
+    const isSusp = p.status === 'stopped';
+    return `<tr class="${isSel?'selected':''} ${isSusp?'suspended':''}" onclick="selectProc(${p.pid},'${p.name.replace(/'/g,"\\'")}')">
+      <td class="td-pid">${p.pid}</td>
+      <td class="td-name" title="${p.cmd}">${p.name}</td>
+      <td class="td-user">${p.user}</td>
+      <td><span class="status-badge ${statusCls}">${p.status}</span></td>
+      <td class="td-cpu">${p.cpu.toFixed(1)}</td>
+      <td class="td-mem">${p.mem_percent.toFixed(2)}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;text-align:right">${fmtBytes(p.mem_rss)}</td>
+      <td class="td-threads">${p.threads}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;text-align:right;color:${p.nice<0?'var(--red)':p.nice>0?'var(--green)':'var(--text-muted)'}">${p.nice}</td>
+    </tr>`;
+  }).join('');
+}
+
+function selectProc(pid, name) {
+  selectedPid = pid;
+  selectedProcName = name;
+  const actionsEl = document.getElementById('proc-actions');
+  actionsEl.classList.add('visible');
+  document.getElementById('proc-sel-info').innerHTML = `Selected: <strong>${name}</strong> (PID ${pid})`;
+  renderProcs();
+}
+
+function deselectProc() {
+  selectedPid = null;
+  document.getElementById('proc-actions').classList.remove('visible');
+  renderProcs();
+}
+
+function setSortCol(col) {
+  document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+  // Highlight the clicked header
+  event.target.classList.add('sorted');
+}
+
+async function procAction(action) {
+  if (!selectedPid) return;
+  const confirmMsg = {
+    kill: `Kill -9 (force kill) PID ${selectedPid} "${selectedProcName}"?`,
+    terminate: `Terminate PID ${selectedPid} "${selectedProcName}"?`,
+    suspend: `Suspend PID ${selectedPid}?`,
+    resume: `Resume PID ${selectedPid}?`,
+  }[action];
+
+  if ((action === 'kill' || action === 'terminate') && !confirm(confirmMsg)) return;
+
+  try {
+    const r = await fetch(`/api/process/${selectedPid}/${action}`, { method: 'POST' });
+    const data = await r.json();
+    toast(data.ok ? 'ok' : 'err', data.msg);
+    if (data.ok) {
+      await reloadProcs();
+      if (action === 'kill' || action === 'terminate') deselectProc();
+    }
+  } catch (e) {
+    toast('err', 'Request failed');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Toast
+// ═══════════════════════════════════════════════════════
+function toast(type, msg) {
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hidden');
+    startPolling();
+    loadDisks();
+    loadInterfaces();
+    setInterval(loadDisks, 30000);
+    setInterval(loadInterfaces, 30000);
+    // Auto-refresh process list if on that view
+    setInterval(() => {
+      if (document.getElementById('view-processes').classList.contains('active')) {
+        reloadProcs();
+      }
+    }, 3000);
+  }, 1200);
+});
+</script>
+</body>
+</html>
