@@ -1,1 +1,3 @@
 GPU_Vigil/src/**
+GPU_Vigil/.pyre/**
+GPU_Vigil/.venv/**
