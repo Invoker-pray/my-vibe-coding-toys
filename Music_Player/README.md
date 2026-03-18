@@ -1,0 +1,1 @@
+一个用browser打开的本地music player.

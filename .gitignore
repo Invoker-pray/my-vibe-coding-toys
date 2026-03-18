@@ -1,3 +1,43 @@
 GPU_Vigil/src/**
 GPU_Vigil/.pyre/**
 GPU_Vigil/.venv/**
+
+
+# ══════════════════════════════════
+#  my-tools 项目总 .gitignore
+# ══════════════════════════════════
+
+# ─── 全局通用规则 ───
+
+# 所有子项目的 node_modules（递归匹配）
+**/node_modules
+
+# 所有子项目的构建产物
+**/build
+**/dist
+
+# 环境变量
+**/.env
+**/.env.local
+**/.env.*.local
+
+# 系统文件
+.DS_Store
+**/Thumbs.db
+
+# 编辑器配置
+.vscode/
+.idea/
+**/*.swp
+**/*.swo
+
+# 日志
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# 测试覆盖率
+**/coverage
+
+# ─── pytorch-visual-builder 专用 ───
+# （如果其他子项目有特殊需求，在下面继续追加）
